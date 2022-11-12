@@ -1,63 +1,113 @@
-use std::fs::{Metadata, ReadDir};
+use core::fmt::Debug;
+use std::fs::{File, Metadata, OpenOptions, ReadDir};
 use std::io::Result;
-use std::ops::Div;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
-pub struct WorkingDir {
-    path: PathBuf,
-}
-
-pub struct JoinResult {
-    path: PathBuf,
-}
-
-impl AsRef<Path> for JoinResult {
-    fn as_ref(&self) -> &Path {
-        self.path.as_ref()
-    }
-}
-
-impl<P: AsRef<Path>> Div<P> for &WorkingDir {
-    type Output = JoinResult;
-
-    fn div(self, rhs: P) -> Self::Output {
-        return JoinResult {
-            path: self.path.join(rhs),
-        };
-    }
-}
-
-impl<P: AsRef<Path>> Div<P> for WorkingDir {
-    type Output = JoinResult;
-
-    fn div(self, rhs: P) -> Self::Output {
-        return JoinResult {
-            path: self.path.join(rhs),
-        };
-    }
-}
-
-impl WorkingDir {
-    /// Create a WorkingDir
-    pub fn new<P: AsRef<Path>>(path: P) -> WorkingDir {
-        return WorkingDir {
-            path: PathBuf::from(path.as_ref()),
-        };
+pub trait WorkingDir
+where
+    Self: AsRef<Path>,
+{
+    /// Join this working dir with some path
+    fn join<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        self.as_ref().join(path)
     }
 
-    pub fn join<P: AsRef<Path>>(&self, path: P) -> impl AsRef<Path> {
-        self / path
+    /// Opens a file with the given OpenOptions
+    fn open<P: AsRef<Path>>(&self, path: P, opts: &OpenOptions) -> Result<File> {
+        opts.open(self.join(path))
+    }
+
+    /// Opens a file in read-only mode
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/struct.File.html#method.open
+    fn open_readonly<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+        File::open(self.join(path))
+    }
+
+    /// Creates any parent directories for a given path. Does nothing
+    /// if the path has no parents.
+    ///
+    /// # Errors
+    /// This function returns an error if the creation of the parent
+    /// directories fails
+    fn create_parents<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let path = path.as_ref();
+
+        // We only need to create the parents if the path has parents
+        if let Some(parent) = path.parent() {
+            self.create_dir_all(parent)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Returns true if the path points at an existing entity.
+    ///
+    /// Warning: this method may be error-prone, consider using try_exists()
+    /// instead! It also has a risk of introducing time-of-check to
+    /// time-of-use (TOCTOU) bugs.
+    ///
+    /// This function will traverse symbolic links to query information
+    /// about the destination file.
+    ///
+    /// If you cannot access the metadata of the file, e.g. because of
+    /// a permission error or broken symbolic links, this will return false.
+    ///
+    /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.exists
+    fn exists<P: AsRef<Path>>(&self, path: P) -> bool {
+        self.join(path).as_path().exists()
+    }
+
+    /// Returns `Ok(true)` if the path points at an existing entity.
+    ///
+    /// This function will traverse symbolic links to query information
+    /// about the destination file. In case of broken symbolic links this
+    /// will return `Ok(false)`.
+    ///
+    /// As opposed to the `exists()` method, this one doesn’t silently
+    /// ignore errors unrelated to the path not existing. (E.g. it will
+    /// return `Err(_)` in case of permission denied on some of the parent
+    /// directories.)
+    ///
+    /// Note that while this avoids some pitfalls of the `exists()` method,
+    /// it still can not prevent time-of-check to time-of-use (TOCTOU) bugs.
+    /// You should only use it in scenarios where those bugs are not an issue.
+    ///
+    /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.try_exists
+    fn try_exists<P: AsRef<Path>>(&self, path: P) -> Result<bool> {
+        self.join(path).as_path().try_exists()
+    }
+
+    /// Moves a path from this working directory, to another working directory.
+    ///
+    /// Suppose we have some path `path/to/thing`, corresponding to `<self>/path/to/thing`
+    /// in the current working directory.
+    ///
+    /// This function will move it to `<B>/path/to/thing`, in working directory B, creating
+    /// any parent dirs as necessary
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error in the following cases:
+    ///
+    /// - `<working dir>/<path>` does not exist (in which case, there is nothing to rename)
+    /// - The user lacks permission to view the contents of the path.
+    /// - The destination is on a separate filesystem
+    fn move_to<WD: WorkingDir, P: AsRef<Path>>(&self, new_root: WD, path: P) -> Result<()> {
+        let path = path.as_ref();
+        new_root.create_parents(path)?;
+        fs::rename(self.join(path), new_root.join(path))
     }
 
     /// Returns the canonical, absolute form of a path relative to the current working directory,
     /// with all intermediate components normalized and symbolic links resolved.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.canonicalize.html
-    pub fn canonicalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        fs::canonicalize(self / path)
+    fn canonicalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
+        fs::canonicalize(self.join(path))
     }
 
     /// Copies the contents of one file to another. This function
@@ -76,22 +126,22 @@ impl WorkingDir {
     /// and you’re working with Files, see the io::copy() function.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
-    pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(&self, from: P, to: Q) -> Result<u64> {
+    fn copy<P: AsRef<Path>, Q: AsRef<Path>>(&self, from: P, to: Q) -> Result<u64> {
         fs::copy(self.join(from), self.join(to))
     }
 
     /// Creates a new, empty directory at the provided path
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
-    pub fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::create_dir(self / path)
+    fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::create_dir(self.join(path))
     }
 
     /// Recursively create a directory and all of its parent components if they are missing.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir_all.html
-    pub fn create_dir_all<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::create_dir_all(self / path)
+    fn create_dir_all<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::create_dir_all(self.join(path))
     }
 
     /// Creates a new hard link on the filesystem.
@@ -106,8 +156,8 @@ impl WorkingDir {
     /// created hard link points to the symbolic link itself.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.hard_link.html
-    pub fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(&self, original: P, link: Q) -> Result<()> {
-        fs::hard_link(self / original, self / link)
+    fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(&self, original: P, link: Q) -> Result<()> {
+        fs::hard_link(self.join(original), self.join(link))
     }
 
     /// Given a path, query the file system to get information about
@@ -117,8 +167,8 @@ impl WorkingDir {
     /// information about the destination file.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.metadata.html
-    pub fn metadata<P: AsRef<Path>>(&self, path: P) -> Result<Metadata> {
-        fs::metadata(self / path)
+    fn metadata<P: AsRef<Path>>(&self, path: P) -> Result<Metadata> {
+        fs::metadata(self.join(path))
     }
 
     /// Read the entire contents of a file into a bytes vector.
@@ -127,8 +177,8 @@ impl WorkingDir {
     /// `read_to_end` with fewer imports and without an intermediate variable.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read.html
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>> {
-        fs::read(self / path)
+    fn read<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>> {
+        fs::read(self.join(path))
     }
 
     /// Returns an iterator over the entries within a directory.
@@ -139,15 +189,15 @@ impl WorkingDir {
     /// (typically `.` and `..`) are skipped.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_dir.html
-    pub fn read_dir<P: AsRef<Path>>(&self, path: P) -> Result<ReadDir> {
-        fs::read_dir(self / path)
+    fn read_dir<P: AsRef<Path>>(&self, path: P) -> Result<ReadDir> {
+        fs::read_dir(self.join(path))
     }
 
     /// Reads a symbolic link, returning the file that the link points to.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_link.html
-    pub fn read_link<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        fs::read_link(self / path)
+    fn read_link<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
+        fs::read_link(self.join(path))
     }
 
     /// Read the entire contents of a file into a string.
@@ -157,17 +207,112 @@ impl WorkingDir {
     /// intermediate variable.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_to_string.html
-    pub fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String> {
-        fs::read_to_string(self / path)
+    fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String> {
+        fs::read_to_string(self.join(path))
     }
 
     /// Removes an empty directory.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir.html
-    pub fn remove_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::remove_dir(self / path)
+    fn remove_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::remove_dir(self.join(path))
+    }
+
+    /// Removes a directory at this path, after removing all
+    /// its contents. Use carefully!
+    ///
+    /// This function does **not** follow symbolic links and it will
+    /// simply remove the symbolic link itself.
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir_all.html
+    fn remove_dir_all<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::remove_dir_all(self.join(path))
+    }
+
+    /// Removes a file from the filesystem.
+    ///
+    /// Note that there is no guarantee that the file is immediately
+    /// deleted (e.g., depending on platform, other open file
+    /// descriptors may prevent immediate removal).
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/fn.remove_file.html
+    fn remove_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        fs::remove_file(self.join(path))
+    }
+
+    /// Rename a file or directory to a new name, replacing
+    /// the original file if to already exists.
+    ///
+    /// This will not work if the new name is on a different mount point.
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/fn.rename.html
+    fn rename<P: AsRef<Path>, Q: AsRef<Path>>(&self, from: P, to: Q) -> Result<()> {
+        fs::rename(self.join(from), self.join(to))
+    }
+
+    /// Query the metadata about a file without following symlinks.
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/fn.symlink_metadata.html
+    fn symlink_metadata<P: AsRef<Path>>(&self, path: P) -> Result<Metadata> {
+        fs::symlink_metadata(self.join(path))
+    }
+
+    /// Write a slice as the entire contents of a file.
+    ///
+    /// This function will create a file if it does not exist, and will
+    /// entirely replace its contents if it does.
+    ///
+    /// Depending on the platform, this function may fail if the full
+    /// directory path does not exist.
+    ///
+    /// This is a convenience function for using File::create and
+    /// write_all with fewer imports.
+    ///
+    /// See: https://doc.rust-lang.org/std/fs/fn.write.html
+    fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&self, path: P, contents: C) -> Result<()> {
+        fs::write(self.join(path), contents)
     }
 }
+
+#[derive(PartialEq, PartialOrd, Eq, Ord)]
+pub struct Dir {
+    path: PathBuf,
+}
+
+impl Debug for Dir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let path = self.path.as_path();
+
+        if let Some(path) = path.to_str() {
+            if path.ends_with("/") {
+                write!(f, "Dir(\"{path}\")")
+            } else {
+                write!(f, "Dir(\"{path}/\")")
+            }
+        } else {
+            let path = path.to_string_lossy();
+            if path.ends_with("/") {
+                write!(f, "Dir(\"{path}\")")
+            } else {
+                write!(f, "Dir(\"{path}/\")")
+            }
+        }
+    }
+}
+
+impl Dir {
+    pub fn new<P: Into<PathBuf>>(path: P) -> Dir {
+        Dir { path: path.into() }
+    }
+}
+
+impl AsRef<Path> for Dir {
+    fn as_ref(&self) -> &Path {
+        self.path.as_path()
+    }
+}
+
+impl<P: AsRef<Path>> WorkingDir for P {}
 
 #[cfg(test)]
 mod tests;
