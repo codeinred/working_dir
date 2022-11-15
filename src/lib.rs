@@ -6,6 +6,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod with_joined;
+
+fn create_parents<P: AsRef<Path>>(path: P) -> Result<()> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+    } else {
+        Ok(())
+    }
+}
+
 pub trait WorkingDir
 where
     Self: AsRef<Path>,
@@ -17,14 +28,14 @@ where
 
     /// Opens a file with the given OpenOptions
     fn open<P: AsRef<Path>>(&self, path: P, opts: &OpenOptions) -> Result<File> {
-        opts.open(self.join(path))
+        with_joined! { path = self / path => opts.open(path) }
     }
 
     /// Opens a file in read-only mode
     ///
     /// See: https://doc.rust-lang.org/std/fs/struct.File.html#method.open
     fn open_readonly<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        File::open(self.join(path))
+        with_joined! { path = self / path => File::open(path) }
     }
 
     /// Creates any parent directories for a given path. Does nothing
@@ -34,13 +45,8 @@ where
     /// This function returns an error if the creation of the parent
     /// directories fails
     fn create_parents<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let path = path.as_ref();
-
-        // We only need to create the parents if the path has parents
-        if let Some(parent) = path.parent() {
-            self.create_dir_all(parent)
-        } else {
-            Ok(())
+        with_joined! {
+            path = self / path => create_parents(path)
         }
     }
 
@@ -58,7 +64,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.exists
     fn exists<P: AsRef<Path>>(&self, path: P) -> bool {
-        self.join(path).as_path().exists()
+        with_joined! { path = self / path => path.exists() }
     }
 
     /// Returns `Ok(true)` if the path points at an existing entity.
@@ -78,7 +84,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.try_exists
     fn try_exists<P: AsRef<Path>>(&self, path: P) -> Result<bool> {
-        self.join(path).as_path().try_exists()
+        with_joined! { path = self / path => path.try_exists() }
     }
 
     /// Moves a path from this working directory, to another working directory.
@@ -98,8 +104,13 @@ where
     /// - The destination is on a separate filesystem
     fn move_to<WD: WorkingDir, P: AsRef<Path>>(&self, new_root: WD, path: P) -> Result<()> {
         let path = path.as_ref();
-        new_root.create_parents(path)?;
-        fs::rename(self.join(path), new_root.join(path))
+        with_joined! {
+            old_path = self / path,
+            new_path = new_root / path
+            =>
+            create_parents(new_path)?;
+            fs::rename(old_path, new_path)
+        }
     }
 
     /// Returns the canonical, absolute form of a path relative to the current working directory,
@@ -107,7 +118,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.canonicalize.html
     fn canonicalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        fs::canonicalize(self.join(path))
+        with_joined! { path = self / path => fs::canonicalize(path) }
     }
 
     /// Copies the contents of one file to another. This function
@@ -127,21 +138,25 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
     fn copy<P: AsRef<Path>, Q: AsRef<Path>>(&self, from: P, to: Q) -> Result<u64> {
-        fs::copy(self.join(from), self.join(to))
+        with_joined! {
+            from = self / from,
+            to = self / to
+            => fs::copy(from, to)
+        }
     }
 
     /// Creates a new, empty directory at the provided path
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
     fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::create_dir(self.join(path))
+        with_joined! { path = self / path => fs::create_dir(path) }
     }
 
     /// Recursively create a directory and all of its parent components if they are missing.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.create_dir_all.html
     fn create_dir_all<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::create_dir_all(self.join(path))
+        with_joined! { path = self / path => fs::create_dir_all(path) }
     }
 
     /// Creates a new hard link on the filesystem.
@@ -157,7 +172,11 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.hard_link.html
     fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(&self, original: P, link: Q) -> Result<()> {
-        fs::hard_link(self.join(original), self.join(link))
+        with_joined! {
+            original = self / original,
+            link = self / link
+            => fs::hard_link(original, link)
+        }
     }
 
     /// Given a path, query the file system to get information about
@@ -168,7 +187,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.metadata.html
     fn metadata<P: AsRef<Path>>(&self, path: P) -> Result<Metadata> {
-        fs::metadata(self.join(path))
+        with_joined! { path = self / path => fs::metadata(path) }
     }
 
     /// Read the entire contents of a file into a bytes vector.
@@ -178,7 +197,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read.html
     fn read<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>> {
-        fs::read(self.join(path))
+        with_joined! { path = self / path => fs::read(path) }
     }
 
     /// Returns an iterator over the entries within a directory.
@@ -190,14 +209,14 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_dir.html
     fn read_dir<P: AsRef<Path>>(&self, path: P) -> Result<ReadDir> {
-        fs::read_dir(self.join(path))
+        with_joined! { path = self / path => fs::read_dir(path) }
     }
 
     /// Reads a symbolic link, returning the file that the link points to.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_link.html
     fn read_link<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        fs::read_link(self.join(path))
+        with_joined! { path = self / path => fs::read_link(path) }
     }
 
     /// Read the entire contents of a file into a string.
@@ -208,14 +227,14 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.read_to_string.html
     fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String> {
-        fs::read_to_string(self.join(path))
+        with_joined! { path = self / path => fs::read_to_string(path) }
     }
 
     /// Removes an empty directory.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir.html
     fn remove_dir<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::remove_dir(self.join(path))
+        with_joined! { path = self / path => fs::remove_dir(path) }
     }
 
     /// Removes a directory at this path, after removing all
@@ -226,7 +245,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir_all.html
     fn remove_dir_all<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::remove_dir_all(self.join(path))
+        with_joined! { path = self / path => fs::remove_dir_all(path) }
     }
 
     /// Removes a file from the filesystem.
@@ -237,7 +256,7 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.remove_file.html
     fn remove_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        fs::remove_file(self.join(path))
+        with_joined! { path = self / path => fs::remove_file(path) }
     }
 
     /// Rename a file or directory to a new name, replacing
@@ -247,14 +266,18 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.rename.html
     fn rename<P: AsRef<Path>, Q: AsRef<Path>>(&self, from: P, to: Q) -> Result<()> {
-        fs::rename(self.join(from), self.join(to))
+        with_joined! {
+            from = self / from,
+            to = self / to
+            => fs::rename(from, to)
+        }
     }
 
     /// Query the metadata about a file without following symlinks.
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.symlink_metadata.html
     fn symlink_metadata<P: AsRef<Path>>(&self, path: P) -> Result<Metadata> {
-        fs::symlink_metadata(self.join(path))
+        with_joined! { path = self / path => fs::symlink_metadata(path) }
     }
 
     /// Write a slice as the entire contents of a file.
@@ -270,7 +293,9 @@ where
     ///
     /// See: https://doc.rust-lang.org/std/fs/fn.write.html
     fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&self, path: P, contents: C) -> Result<()> {
-        fs::write(self.join(path), contents)
+        with_joined! {
+            path = self / path => fs::write(path, contents)
+        }
     }
 }
 
