@@ -19,9 +19,20 @@ fn create_parents<P: AsRef<Path>>(path: P) -> Result<()> {
 
 impl <P> Dir<P> where P: AsRef<Path>
 {
+    #[inline]
     /// Join this working dir with some path
     pub fn join<P2: AsRef<Path>>(&self, path: P2) -> PathBuf {
-        self.as_ref().join(path)
+        let rhs = path.as_ref();
+        if rhs.is_absolute() {
+            return rhs.to_owned();
+        } else {
+            let lhs = self.0.as_ref();
+            let mut result = PathBuf::new();
+            result.reserve(lhs.as_os_str().len() + rhs.as_os_str().len() + 1);
+            result.push(lhs);
+            result.push(rhs);
+            result
+        }
     }
 
     /// Opens a file with the given [`OpenOptions`]
