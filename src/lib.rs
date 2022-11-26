@@ -24,14 +24,14 @@ impl <P> Dir<P> where P: AsRef<Path>
         self.as_ref().join(path)
     }
 
-    /// Opens a file with the given OpenOptions
+    /// Opens a file with the given [`OpenOptions`]
     pub fn open<P2: AsRef<Path>>(&self, path: P2, opts: &OpenOptions) -> Result<File> {
         with_paths! { path = self / path => opts.open(path) }
     }
 
     /// Opens a file in read-only mode
     ///
-    /// See: https://doc.rust-lang.org/std/fs/struct.File.html#method.open
+    /// See: [`std::fs::File::open`]
     pub fn open_readonly<P2: AsRef<Path>>(&self, path: P2) -> Result<File> {
         with_paths! { path = self / path => File::open(path) }
     }
@@ -60,13 +60,13 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// If you cannot access the metadata of the file, e.g. because of
     /// a permission error or broken symbolic links, this will return false.
     ///
-    /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.exists
+    /// See: [`std::path::Path::exists`]
     pub fn exists<P2: AsRef<Path>>(&self, path: P2) -> bool {
         with_paths! { path = self / path => path.exists() }
     }
 
     #[inline]
-    /// Checks if this directory contains a given path. Alias for [exists()](#method.exists)
+    /// Checks if this directory contains a given path. Alias for [`Dir::exists`]
     pub fn contains<P2: AsRef<Path>>(&self, path: P2) -> bool {
         self.exists(path)
     }
@@ -86,13 +86,13 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// it still can not prevent time-of-check to time-of-use (TOCTOU) bugs.
     /// You should only use it in scenarios where those bugs are not an issue.
     ///
-    /// See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.try_exists
+    /// See: [`std::path::Path::try_exists`]
     pub fn try_exists<P2: AsRef<Path>>(&self, path: P2) -> Result<bool> {
         with_paths! { path = self / path => path.try_exists() }
     }
 
     #[inline]
-    /// Checks if this directory contains a given path. Alias for [try_exists()](#method.try_exists)
+    /// Checks if this directory contains a given path. Alias for [`Dir::try_exists`]
     pub fn try_contains<P2: AsRef<Path>>(&self, path: P2) -> Result<bool> {
         self.try_exists(path)
     }
@@ -125,7 +125,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// Returns the canonical, absolute form of a path relative to the current working directory,
     /// with all intermediate components normalized and symbolic links resolved.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.canonicalize.html
+    /// See: [`std::fs::canonicalize`]
     pub fn canonicalize<P2: AsRef<Path>>(&self, path: P2) -> Result<PathBuf> {
         with_paths! { path = self / path => fs::canonicalize(path) }
     }
@@ -145,7 +145,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// If you’re wanting to copy the contents of one file to another
     /// and you’re working with Files, see the io::copy() function.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
+    /// See: [`std::fs::create_dir`]
     pub fn copy<P2: AsRef<Path>, P3: AsRef<Path>>(&self, from: P2, to: P3) -> Result<u64> {
         with_paths! {
             from = self / from,
@@ -156,14 +156,14 @@ impl <P> Dir<P> where P: AsRef<Path>
 
     /// Creates a new, empty directory at the provided path
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.create_dir.html
+    /// See: [`std::fs::create_dir`]
     pub fn create_dir<P2: AsRef<Path>>(&self, path: P2) -> Result<()> {
         with_paths! { path = self / path => fs::create_dir(path) }
     }
 
     /// Recursively create a directory and all of its parent components if they are missing.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.create_dir_all.html
+    /// See: [`std::fs::create_dir_all`]
     pub fn create_dir_all<P2: AsRef<Path>>(&self, path: P2) -> Result<()> {
         with_paths! { path = self / path => fs::create_dir_all(path) }
     }
@@ -179,7 +179,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// it’s possible to not follow it, it is not followed, and the
     /// created hard link points to the symbolic link itself.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.hard_link.html
+    /// See: [`std::fs::hard_link`]
     pub fn hard_link<P2: AsRef<Path>, P3: AsRef<Path>>(&self, original: P2, link: P3) -> Result<()> {
         with_paths! {
             original = self / original,
@@ -194,7 +194,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// This function will traverse symbolic links to query
     /// information about the destination file.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.metadata.html
+    /// See: [`std::fs::metadata`]
     pub fn metadata<P2: AsRef<Path>>(&self, path: P2) -> Result<Metadata> {
         with_paths! { path = self / path => fs::metadata(path) }
     }
@@ -204,7 +204,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// This is a convenience function for using `File::open` and
     /// `read_to_end` with fewer imports and without an intermediate variable.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.read.html
+    /// See: [`std::fs::read`]
     pub fn read<P2: AsRef<Path>>(&self, path: P2) -> Result<Vec<u8>> {
         with_paths! { path = self / path => fs::read(path) }
     }
@@ -216,14 +216,14 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// constructed. Entries for the current and parent directories
     /// (typically `.` and `..`) are skipped.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.read_dir.html
+    /// See: [`std::fs::read_dir`]
     pub fn read_dir<P2: AsRef<Path>>(&self, path: P2) -> Result<ReadDir> {
         with_paths! { path = self / path => fs::read_dir(path) }
     }
 
     /// Reads a symbolic link, returning the file that the link points to.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.read_link.html
+    /// See: [`std::fs::read_link`]
     pub fn read_link<P2: AsRef<Path>>(&self, path: P2) -> Result<PathBuf> {
         with_paths! { path = self / path => fs::read_link(path) }
     }
@@ -234,14 +234,14 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// and read_to_string with fewer imports and without an
     /// intermediate variable.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.read_to_string.html
+    /// See: [`std::fs::read_to_string`]
     pub fn read_to_string<P2: AsRef<Path>>(&self, path: P2) -> Result<String> {
         with_paths! { path = self / path => fs::read_to_string(path) }
     }
 
     /// Removes an empty directory.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir.html
+    /// See: [`std::fs::remove_dir`]
     pub fn remove_dir<P2: AsRef<Path>>(&self, path: P2) -> Result<()> {
         with_paths! { path = self / path => fs::remove_dir(path) }
     }
@@ -252,7 +252,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// This function does **not** follow symbolic links and it will
     /// simply remove the symbolic link itself.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.remove_dir_all.html
+    /// See: [`std::fs::remove_dir_all`]
     pub fn remove_dir_all<P2: AsRef<Path>>(&self, path: P2) -> Result<()> {
         with_paths! { path = self / path => fs::remove_dir_all(path) }
     }
@@ -263,7 +263,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// deleted (e.g., depending on platform, other open file
     /// descriptors may prevent immediate removal).
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.remove_file.html
+    /// See: [`std::fs::remove_file`]
     pub fn remove_file<P2: AsRef<Path>>(&self, path: P2) -> Result<()> {
         with_paths! { path = self / path => fs::remove_file(path) }
     }
@@ -273,7 +273,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     ///
     /// This will not work if the new name is on a different mount point.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.rename.html
+    /// See: [`std::fs::rename`]
     pub fn rename<P2: AsRef<Path>, P3: AsRef<Path>>(&self, from: P2, to: P3) -> Result<()> {
         with_paths! {
             from = self / from,
@@ -284,7 +284,7 @@ impl <P> Dir<P> where P: AsRef<Path>
 
     /// Query the metadata about a file without following symlinks.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.symlink_metadata.html
+    /// See: [`std::fs::symlink_metadata`]
     pub fn symlink_metadata<P2: AsRef<Path>>(&self, path: P2) -> Result<Metadata> {
         with_paths! { path = self / path => fs::symlink_metadata(path) }
     }
@@ -300,7 +300,7 @@ impl <P> Dir<P> where P: AsRef<Path>
     /// This is a convenience function for using File::create and
     /// write_all with fewer imports.
     ///
-    /// See: https://doc.rust-lang.org/std/fs/fn.write.html
+    /// See: [`std::fs::write`]
     pub fn write<P2: AsRef<Path>, C: AsRef<[u8]>>(&self, path: P2, contents: C) -> Result<()> {
         with_paths! {
             path = self / path => fs::write(path, contents)
@@ -310,19 +310,16 @@ impl <P> Dir<P> where P: AsRef<Path>
 
 #[repr(transparent)]
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
-pub struct Dir<P>
+pub struct Dir<P>(P)
 where
-    P: AsRef<Path>,
-{
-    path: P,
-}
+    P: AsRef<Path>;
 
 impl<P> Debug for Dir<P>
 where
     P: AsRef<Path>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let path = self.path.as_ref();
+        let path = self.0.as_ref();
 
         if let Some(path) = path.to_str() {
             if path.ends_with("/") {
@@ -347,7 +344,7 @@ where
 {
     #[inline]
     fn from(value: P) -> Self {
-        Self::new(value)
+        Dir(value)
     }
 }
 
@@ -357,7 +354,7 @@ where
 {
     #[inline]
     pub fn new(path: P) -> Dir<P> {
-        Dir { path: path.into() }
+        Dir(path.into())
     }
 }
 
@@ -367,7 +364,7 @@ where
 {
     #[inline]
     fn as_ref(&self) -> &Path {
-        self.path.as_ref()
+        self.0.as_ref()
     }
 }
 
