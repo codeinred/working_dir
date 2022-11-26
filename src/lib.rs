@@ -322,6 +322,8 @@ impl <P> Dir<P> where P: AsRef<Path>
 
 #[repr(transparent)]
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
+/// Acts as a Working Directory. Provides a variety of functions
+/// to manipulate and query directories and files in the context of that directory.
 pub struct Dir<P>(P)
 where
     P: AsRef<Path>;
@@ -364,9 +366,10 @@ impl<P> Dir<P>
 where
     P: AsRef<Path>,
 {
+    /// Creates a Dir from the given path
     #[inline]
     pub fn new(path: P) -> Dir<P> {
-        Dir(path.into())
+        Dir(path)
     }
 }
 
