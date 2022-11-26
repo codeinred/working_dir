@@ -324,7 +324,7 @@ impl <P> Dir<P> where P: AsRef<Path>
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
 /// Acts as a Working Directory. Provides a variety of functions
 /// to manipulate and query directories and files in the context of that directory.
-pub struct Dir<P>(P)
+pub struct Dir<P>(pub P)
 where
     P: AsRef<Path>;
 
