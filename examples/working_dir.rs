@@ -1,5 +1,5 @@
 use std::{io::Result, path::Path};
-use working_dir::{Dir, WorkingDir};
+use working_dir::Dir;
 
 fn main() -> Result<()> {
     let cwd = Dir::new("my/root");
