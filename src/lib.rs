@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use core::fmt::Debug;
 use std::fs::{File, Metadata, OpenOptions, ReadDir};
 use std::io::Result;
