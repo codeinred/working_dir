@@ -1,7 +1,13 @@
 [package]
-name = "working_dir"
-version = "0.1.0"
+authors = ["Alecto Irene Perez <perez.cs@pm.me>"]
+description = "Provides a working directory abstraction as local state"
 edition = "2021"
+homepage = "https://github.com/codeinred/working_dir"
+keywords = ["path", "paths", "filesystem", "fs", "working_dir"]
+license = "MIT OR Apache-2.0"
+name = "working_dir"
+repository = "https://github.com/codeinred/working_dir.git"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
