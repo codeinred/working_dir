@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[test]
 fn hello_test() -> std::io::Result<()> {
-    let cwd = Dir::new("my/root");
+    let cwd = Dir("my/root");
     let path = Path::new("path/to/file.txt");
 
     cwd.create_parents(path)?;
@@ -23,7 +23,7 @@ fn hello_test() -> std::io::Result<()> {
     // Check that the content is what we expect
     assert_eq!(cwd.read_to_string(path)?, "Hello, world!\n");
 
-    let other_cwd = Dir::new("some/other/root");
+    let other_cwd = Dir("some/other/root");
 
     cwd.move_to(&other_cwd, path)?;
 
