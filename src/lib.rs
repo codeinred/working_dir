@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use std::fs::{File, Metadata, OpenOptions, ReadDir};
 use std::io::Result;
+use std::ops::Div;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -376,6 +377,24 @@ where
     #[inline]
     fn as_ref(&self) -> &Path {
         self.0.as_ref()
+    }
+}
+
+impl <P, Q> Div<Q> for &Dir<P> where P: AsRef<Path>, Q: AsRef<Path> {
+    type Output = PathBuf;
+
+    #[inline]
+    fn div(self, rhs: Q) -> Self::Output {
+        self.join(rhs)
+    }
+}
+
+impl <P, Q> Div<Q> for Dir<P> where P: AsRef<Path>, Q: AsRef<Path> {
+    type Output = PathBuf;
+
+    #[inline]
+    fn div(self, rhs: Q) -> Self::Output {
+        self.join(rhs)
     }
 }
 
