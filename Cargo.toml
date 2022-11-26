@@ -1,6 +1,7 @@
 [package]
 authors = ["Alecto Irene Perez <perez.cs@pm.me>"]
 description = "Provides a working directory abstraction as local state"
+documentation = "https://docs.rs/working_dir/"
 edition = "2021"
 homepage = "https://github.com/codeinred/working_dir"
 keywords = ["path", "paths", "filesystem", "fs", "working_dir"]
